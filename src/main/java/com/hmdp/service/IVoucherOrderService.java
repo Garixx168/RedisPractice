@@ -13,9 +13,12 @@ import com.baomidou.mybatisplus.extension.service.IService;
  * @since 2021-12-22
  */
 
-/**
- * 优惠券抢购
- */
+
 public interface IVoucherOrderService extends IService<VoucherOrder> {
+    /**
+     * 优惠券抢购
+     */
     Result seckillVoucher(Long voucherId);
+
+    Result createVoucherOrder(Long voucherId);
 }
