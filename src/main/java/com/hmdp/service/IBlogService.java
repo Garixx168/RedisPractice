@@ -40,4 +40,6 @@ public interface IBlogService extends IService<Blog> {
      * @return
      */
     Result queryBlogLikes(Long id);
+
+    Result saveBlog(Blog blog);
 }

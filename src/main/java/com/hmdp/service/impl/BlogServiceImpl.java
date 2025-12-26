@@ -7,9 +7,11 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.hmdp.dto.Result;
 import com.hmdp.dto.UserDTO;
 import com.hmdp.entity.Blog;
+import com.hmdp.entity.Follow;
 import com.hmdp.mapper.BlogMapper;
 import com.hmdp.service.IBlogService;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.hmdp.service.IFollowService;
 import com.hmdp.service.IUserService;
 import com.hmdp.utils.SystemConstants;
 import com.hmdp.utils.UserHolder;
@@ -24,6 +26,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import static com.hmdp.utils.RedisConstants.BLOG_LIKED_KEY;
+import static com.hmdp.utils.RedisConstants.FEED_KEY;
 
 /**
  * <p>
@@ -39,7 +42,8 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
     private IUserService userService;
     @Resource
     private StringRedisTemplate stringRedisTemplate;
-
+    @Resource
+    private IFollowService followService;
     @Override
     public Result queryHotBlog(Integer current) {
         // 根据用户查询
@@ -131,6 +135,32 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
                 .collect(Collectors.toList());
         //4.将用户封装为userDTO列表返回
         return Result.ok(userDTOS);
+    }
+
+    /**
+     * 发布博客并将博客推送给所有粉丝
+     * @param blog
+     * @return
+     */
+    @Override
+    public Result saveBlog(Blog blog) {
+        //1.获取登录用户 登录用户即是博客作者
+        UserDTO user = UserHolder.getUser();
+        blog.setUserId(user.getId());
+        //2.保存探店博文到数据库
+        save(blog);
+        //3.推送博客给粉丝 利用sortset存储，key是粉丝id，value是blogId，score是时间戳
+        //3.1.查询所有粉丝，根据作者id查询tb_follow表，查出粉丝id
+        List<Follow> follows = followService.query().eq("follow_user_id", user.getId()).list();
+        //3.2取出粉丝id
+        for (Follow follow : follows) {
+            Long userId = follow.getUserId();
+            //3.3推送（存入redis中）
+            String key = FEED_KEY+userId;
+            stringRedisTemplate.opsForZSet().add(key,blog.getId().toString(),System.currentTimeMillis());
+        }
+        // 返回id
+        return Result.ok(blog.getId());
     }
 
     private void queryBlogUser(Blog blog) {
