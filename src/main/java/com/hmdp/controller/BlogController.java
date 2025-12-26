@@ -3,6 +3,7 @@ package com.hmdp.controller;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.hmdp.dto.Result;
+import com.hmdp.dto.ScrollResult;
 import com.hmdp.dto.UserDTO;
 import com.hmdp.entity.User;
 import com.hmdp.entity.Blog;
@@ -93,4 +94,15 @@ public class BlogController {
         List<Blog> records = page.getRecords();
         return Result.ok(records);
     }
+
+    /**
+     * 查询被关注人推送到收件箱中的博客，并进行滚动分页
+     */
+    @GetMapping("/of/follow")
+    public Result scrollQuery(
+            @RequestParam("lastId") Long max,
+            @RequestParam(value = "offset", defaultValue = "0") Integer offset){
+        return blogService.scrollQuery(max,offset);
+    }
+
 }
