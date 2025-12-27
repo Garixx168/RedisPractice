@@ -105,4 +105,12 @@ public class UserController {
     public Result sign(){
         return userService.sign();
     }
+
+    /**
+     * 统计连续签到
+     */
+    @GetMapping("/sign/count")
+    public Result signCount(){
+        return userService.signCount();
+    }
 }

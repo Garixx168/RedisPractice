@@ -17,6 +17,7 @@ import com.hmdp.utils.UserHolder;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.redis.connection.BitFieldSubCommands;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.scheduling.quartz.LocalDataSourceJobStore;
 import org.springframework.stereotype.Service;
@@ -26,6 +27,7 @@ import javax.servlet.http.HttpSession;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.TimeUnit;
@@ -131,6 +133,49 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
         stringRedisTemplate.opsForValue().setBit(key,dayOfMonth-1,true);
         //6.返回
         return Result.ok();
+    }
+
+    /**
+     * 统计签到
+     * @return
+     */
+    @Override
+    public Result signCount() {
+        //1.获取当前用户
+        Long usrId = UserHolder.getUser().getId();
+        //2.获取当前日期
+        LocalDateTime now = LocalDateTime.now();
+        String sufFixKey = now.format(DateTimeFormatter.ofPattern(":yyyyMM"));
+        //3.拼接成key
+        String key = USER_SIGN_KEY+usrId+sufFixKey;
+        //4.获取当天是本月的第几天
+        int dayOfMonth = now.getDayOfMonth();
+        //5.查询redis得到的是一个十进制数
+        List<Long> result = stringRedisTemplate.opsForValue().bitField(
+                key,
+                BitFieldSubCommands.create()
+                        .get(BitFieldSubCommands.BitFieldType.unsigned(dayOfMonth)).valueAt(0));
+        if (result == null || result.isEmpty()){
+            return Result.ok(0);//没有任何签到结果
+        }
+        Long num = result.get(0);
+        if (num == null){
+            return Result.ok(0);
+        }
+        //6.循环遍历
+        int count = 0;
+        while (true){
+            //6.1将这个十进制数与1进行与运算
+            if ((num & 1) == 0){
+                //6.4为0，结束循环
+                break;
+            }else {
+                //6.3为1，count+1
+                count++;
+            }
+            num >>>= 1;//右移一位，抛弃最后一个bit位，继续下一个bit位
+        }
+        return Result.ok(count);
     }
 
     private User createUserWithPhone(String phone) {
